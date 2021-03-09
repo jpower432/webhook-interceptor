@@ -1,5 +1,5 @@
 # webhook-interceptor
-A Go service to act as an Webhook interceptor 
+A Go service to act as a Webhook interceptor 
 
 ## Building instructions
 mkdir bin

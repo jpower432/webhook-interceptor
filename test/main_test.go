@@ -24,6 +24,7 @@ func TestHealthRoute(t *testing.T) {
 
 func TestStringResponse(t *testing.T) {
 	os.Setenv("WEBHOOK_SECRET", "my key")
+	os.Setenv("HEADER", "X-Hub-Signature")
 	router := setupServer()
 
 	var body = []byte(`sign this message`)
@@ -42,6 +43,7 @@ func TestStringResponse(t *testing.T) {
 
 func TestJSONResponse(t *testing.T) {
 	os.Setenv("WEBHOOK_SECRET", "my key")
+	os.Setenv("HEADER", "X-Hub-Signature")
 	router := setupServer()
 
 	var body = []byte(`{"test": 123}`)

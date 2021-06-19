@@ -14,25 +14,35 @@ import (
 func validMAC(message, messageMAC, key []byte, shaVersion string) (bool, error) {
 	var mac hash.Hash
 
-	if shaVersion == "sha256" {
+	switch shaVersion {
+	case "sha256":
 		mac = hmac.New(sha256.New, key)
-	} else if shaVersion == "sha512" {
+	case "sha512":
 		mac = hmac.New(sha512.New, key)
-	} else {
+	default:
 		return false, fmt.Errorf("unsupported SHA version: %s", shaVersion)
 	}
-
 	mac.Write(message)
 	expectedMAC := mac.Sum(nil)
 	return hmac.Equal(messageMAC, expectedMAC), nil
 }
 
 // CreateHash a message with the key and return bytes.
-func CreateHash(message, key []byte) []byte {
-	mac := hmac.New(sha256.New, key)
+func CreateHash(message, key []byte, shaVersion string) ([]byte, error) {
+
+	var mac hash.Hash
+
+	switch shaVersion {
+	case "sha256":
+		mac = hmac.New(sha256.New, key)
+	case "sha512":
+		mac = hmac.New(sha512.New, key)
+	default:
+		return nil, fmt.Errorf("unsupported SHA version: %s", shaVersion)
+	}
 	mac.Write(message)
 	hash := mac.Sum(nil)
-	return hash
+	return hash, nil
 }
 
 // Verify validates an encodedHash

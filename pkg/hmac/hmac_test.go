@@ -2,67 +2,68 @@ package hmac
 
 import (
 	"encoding/hex"
-	"fmt"
-	"strings"
 	"testing"
 )
 
-func Test_EncodedHashLength(t *testing.T) {
 
-	digest := "sign this message"
-	key := "my key"
-	sha := "sha256"
+func Test_Verify_Errors(t *testing.T) {
 
-	encodedHash := "123"
-
-	err := Verify([]byte(digest), encodedHash, key, sha)
-	wantErr := "EncodedHash does not contain a ="
-
-	if err == nil {
-		t.Errorf("Expected an error about the encode has length")
-		t.Fail()
-	} else if err.Error() != wantErr {
-		t.Errorf("want: %s, got: %s", wantErr, err.Error())
-		t.Fail()
+	type args struct {
+		digest  string
+		key    string
+		algorithm string
+		encodedHash string
 	}
-}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr string
+	}{
+		{
+			name: "Encode Hash Length",
+			args: args{
+				digest:   "sign this message",
+				key:     "my key",
+				algorithm: "sha256",
+				encodedHash: "123",
+			},
+			wantErr: "EncodedHash does not contain a =",
 
-func Test_WrongHash(t *testing.T) {
-	digest := "sign this message"
-	key := "my key"
-	sha := "sha256"
+		},
+		{
+			name: "Invalid digest",
+			args: args{
+				digest:   "sign this message",
+				key:     "my key",
+				algorithm: "sha256",
+				encodedHash: "sha256=" + "1f8b7712c58dc25be8d30cf25e57739a65f5f2f449b59a42e04da1f191512e7",
+			},
+			wantErr: "Invalid message digest or key",
 
-	encodedHash := "sha256=" + "1f8b7712c58dc25be8d30cf25e57739a65f5f2f449b59a42e04da1f191512e7"
+		},
+		{
+			name: "Incorrect algorithm",
+			args: args{
+				digest:   "sign this message",
+				key:     "my key",
+				algorithm: "sha256",
+				encodedHash: "sha1=" + "41f8b7712c58dc25be8d30cf25e57739a65f5f2f449b59a42e04da1f191512e7",
+			},
+			wantErr: "Incorrect hashing method: sha1",
 
-	err := Verify([]byte(digest), encodedHash, key, sha)
-	wantErr := "Invalid message digest or key"
-
-	if err == nil {
-		t.Errorf("Expected error due to missing prefix")
-		t.Fail()
-	} else if err.Error() != wantErr {
-		t.Errorf("want: %s, got: %s", wantErr, err.Error())
-		t.Fail()
+		},
 	}
-}
-
-func Test_SHAPrefix(t *testing.T) {
-	digest := "sign this message"
-	key := "my key"
-	sha := "sha256"
-
-	encodedHash := "sha1=" + "41f8b7712c58dc25be8d30cf25e57739a65f5f2f449b59a42e04da1f191512e7"
-	shaName := strings.Split(encodedHash, "=")[0]
-
-	err := Verify([]byte(digest), encodedHash, key, sha)
-	wantErr := fmt.Sprintf("Incorrect hashing method: %s", shaName)
-
-	if err == nil {
-		t.Errorf("Expected error due wring Hash type ")
-		t.Fail()
-	} else if err.Error() != wantErr {
-		t.Errorf("want: %s, got: %s", wantErr, err.Error())
-		t.Fail()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Verify([]byte(tt.args.digest), tt.args.encodedHash, tt.args.key, tt.args.algorithm)
+			if err == nil {
+				t.Errorf("Expected an error about the encode has length")
+				t.Fail()
+			} else if err.Error() != tt.wantErr {
+				t.Errorf("want: %s, got: %s", tt.wantErr, err.Error())
+				t.Fail()
+			}
+		})
 	}
 }
 

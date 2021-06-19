@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jpower432/webhook-interceptor/pkg/hmac"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/jpower432/webhook-interceptor/pkg/hmac"
+	"github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,8 +20,8 @@ func main() {
 	setupServer().Run()
 }
 
-// IsJSON is a function that check for valid JSON input
-func IsJSON(str []byte) bool {
+// isJSON is a function that check for valid JSON input
+func isJSON(str []byte) bool {
 	var js json.RawMessage
 	return json.Unmarshal(str, &js) == nil
 }
@@ -44,20 +47,37 @@ func setupServer() *gin.Engine {
 		)
 	}))
 
+	header := os.Getenv("HEADER")
+	logrus.Infof("Using header %s", header)
+
 	r.POST("/test", func(c *gin.Context) {
+
+		cCp := c.Copy()
+
+		results := make(chan string)
+
 		body, _ := ioutil.ReadAll(c.Request.Body)
-		signature := c.GetHeader("X-Hub-Signature")
-		secret := os.Getenv("WEBHOOK_SECRET")
-		valid := hmac.Verify(body, signature, secret, sha)
-		if valid == nil {
-			if IsJSON(body) {
-				c.String(200, string(body))
+
+		go func() {
+
+			signature := cCp.GetHeader(header)
+			secret := os.Getenv("WEBHOOK_SECRET")
+
+			valid := hmac.Verify(body, signature, secret, sha)
+
+			if valid == nil {
+				results <- string(body)
 			} else {
-				c.JSON(200, string(body))
+				results <- fmt.Sprintf("error: %v", valid)
+				logrus.Error(valid)
 			}
+
+		}()
+
+		if isJSON(body) {
+			c.String(http.StatusOK, <-results)
 		} else {
-			c.Error(valid)
-			c.String(400, "Invalid request")
+			c.JSON(http.StatusOK, <-results)
 		}
 
 	})

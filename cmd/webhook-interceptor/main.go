@@ -47,13 +47,14 @@ func setupServer() *gin.Engine {
 		)
 	}))
 
+	header := os.Getenv("HEADER")
+	logrus.Infof("Using header %s", header)
+
 	r.POST("/test", func(c *gin.Context) {
 
 		cCp := c.Copy()
 
 		results := make(chan string)
-
-		header := os.Getenv("HEADER")
 
 		body, _ := ioutil.ReadAll(c.Request.Body)
 
@@ -67,7 +68,7 @@ func setupServer() *gin.Engine {
 			if valid == nil {
 				results <- string(body)
 			} else {
-				results <- "Invalid"
+				results <- fmt.Sprintf("error: %v", valid)
 				logrus.Error(valid)
 			}
 

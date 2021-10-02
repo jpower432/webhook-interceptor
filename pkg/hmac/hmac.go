@@ -77,7 +77,7 @@ func Verify(bytesIn []byte, encodedHash string, secretKey string, shaVersion str
 	return results
 }
 
-func (h hmacValidator) Intercept(ctx *gin.Context, results chan string) {
+func (h hmacValidator) Intercept(ctx *gin.Context, results chan<- string) {
 
 	sha := "sha256"
 	header := os.Getenv("HEADER")
@@ -87,8 +87,10 @@ func (h hmacValidator) Intercept(ctx *gin.Context, results chan string) {
 	secret := os.Getenv("WEBHOOK_SECRET")
 
 	valid := Verify(body, signature, secret, sha)
+	logrus.Info(valid)
 
 	if valid == nil {
+		logrus.Info("Sending results")
 		results <- string(body)
 	} else {
 		results <- fmt.Sprintf("error: %v", valid)

@@ -3,21 +3,58 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"plugin"
 	"time"
+	"webhook-interceptor/pkg/hmac"
 
-	"github.com/jpower432/webhook-interceptor/pkg/hmac"
 	"github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 )
 
-const sha = "sha256"
+
+type Interceptor interface {
+	Intercept(*gin.Context, chan string)
+}
 
 func main() {
-	setupServer().Run()
+	var mod string
+	var interceptor Interceptor
+	var ok bool
+	// argument is path to
+	// custom interceptor module
+	if len(os.Args) == 2 {
+		mod = os.Args[1]
+
+		// load module
+		// 1. open the so file to load the symbols
+		plug, err := plugin.Open(mod)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// look up a symbol (an exported function or variable)
+		symInterceptor, err := plug.Lookup("Interceptor")
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// Assert that loaded symbol is of a desired type
+		interceptor, ok = symInterceptor.(Interceptor)
+		if !ok {
+			fmt.Println("unexpected type from module symbol")
+			os.Exit(1)
+		}
+	} else {
+		// If no plugin is provided, use basic HMAC validation
+		interceptor = hmac.Interceptor
+	}
+
+	setupServer(interceptor).Run()
 }
 
 // isJSON is a function that check for valid JSON input
@@ -27,7 +64,7 @@ func isJSON(str []byte) bool {
 }
 
 // setupServer is a function that sets up a webserver and check the signature
-func setupServer() *gin.Engine {
+func setupServer(interceptor Interceptor) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(gin.Logger())
@@ -50,36 +87,23 @@ func setupServer() *gin.Engine {
 	header := os.Getenv("HEADER")
 	logrus.Infof("Using header %s", header)
 
-	r.POST("/test", func(c *gin.Context) {
+	r.POST("/intercept", func(c *gin.Context) {
 
 		cCp := c.Copy()
-
 		results := make(chan string)
 
-		body, _ := ioutil.ReadAll(c.Request.Body)
+		go interceptor.Intercept(cCp, results)
 
-		go func() {
-
-			signature := cCp.GetHeader(header)
-			secret := os.Getenv("WEBHOOK_SECRET")
-
-			valid := hmac.Verify(body, signature, secret, sha)
-
-			if valid == nil {
-				results <- string(body)
-			} else {
-				results <- fmt.Sprintf("error: %v", valid)
-				logrus.Error(valid)
+		for {
+			select {
+			case result := <-results:
+				if isJSON([]byte(result)) {
+					c.String(http.StatusOK, result)
+				} else {
+					c.JSON(http.StatusOK, result)
+				}
 			}
-
-		}()
-
-		if isJSON(body) {
-			c.String(http.StatusOK, <-results)
-		} else {
-			c.JSON(http.StatusOK, <-results)
 		}
-
 	})
 
 	r.GET("/health", func(c *gin.Context) {

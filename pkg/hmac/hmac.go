@@ -6,10 +6,15 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"hash"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
+type hmacValidator string
 // validateMAC reports whether messageMAC is a valid HMAC tag for message.
 func validMAC(message, messageMAC, key []byte, shaVersion string) (bool, error) {
 	var mac hash.Hash
@@ -72,6 +77,26 @@ func Verify(bytesIn []byte, encodedHash string, secretKey string, shaVersion str
 	return results
 }
 
-func init() {
+func (h hmacValidator) Intercept(ctx *gin.Context, results chan string) {
 
+	sha := "sha256"
+	header := os.Getenv("HEADER")
+	logrus.Infof("Using header %s", header)
+	signature := ctx.GetHeader(header)
+	body, _ := ioutil.ReadAll(ctx.Request.Body)
+	secret := os.Getenv("WEBHOOK_SECRET")
+
+	valid := Verify(body, signature, secret, sha)
+
+	if valid == nil {
+		results <- string(body)
+	} else {
+		results <- fmt.Sprintf("error: %v", valid)
+		logrus.Error(valid)
+	}
 }
+
+// Interceptor exported got plugin use
+var Interceptor hmacValidator
+
+

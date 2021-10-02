@@ -7,12 +7,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"webhook-interceptor/pkg/hmac"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthRoute(t *testing.T) {
-	router := setupServer()
+	router := setupServer(hmac.Interceptor)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/health", nil)
@@ -23,13 +24,19 @@ func TestHealthRoute(t *testing.T) {
 }
 
 func TestStringResponse(t *testing.T) {
-	os.Setenv("WEBHOOK_SECRET", "my key")
-	os.Setenv("HEADER", "X-Hub-Signature")
-	router := setupServer()
+	err := os.Setenv("WEBHOOK_SECRET", "my key")
+	if err != nil {
+		return
+	}
+	err = os.Setenv("HEADER", "X-Hub-Signature")
+	if err != nil {
+		return
+	}
+	router := setupServer(hmac.Interceptor)
 
 	var body = []byte(`sign this message`)
 
-	json, _ := json.Marshal(string(body))
+	j, _ := json.Marshal(string(body))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/intercept", bytes.NewBuffer(body))
@@ -38,13 +45,19 @@ func TestStringResponse(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
-	assert.Equal(t, string(json), w.Body.String())
+	assert.Equal(t, string(j), w.Body.String())
 }
 
 func TestJSONResponse(t *testing.T) {
-	os.Setenv("WEBHOOK_SECRET", "my key")
-	os.Setenv("HEADER", "X-Hub-Signature")
-	router := setupServer()
+	err := os.Setenv("WEBHOOK_SECRET", "my key")
+	if err != nil {
+		return
+	}
+	err = os.Setenv("HEADER", "X-Hub-Signature")
+	if err != nil {
+		return
+	}
+	router := setupServer(hmac.Interceptor)
 
 	var body = []byte(`{"test": 123}`)
 

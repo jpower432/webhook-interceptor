@@ -4,7 +4,6 @@ go 1.17
 
 require (
 	github.com/gin-gonic/gin v1.7.4
-	github.com/jpower432/webhook-interceptor v0.0.0-20210619225333-2d04a2cf3269
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.4.0
 )

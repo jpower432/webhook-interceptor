@@ -14,9 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type Interceptor interface {
-	Intercept(*gin.Context, chan string)
+	Intercept(*gin.Context, chan<- string)
 }
 
 func main() {
@@ -54,7 +53,11 @@ func main() {
 		interceptor = hmac.Interceptor
 	}
 
-	setupServer(interceptor).Run()
+	err := setupServer(interceptor).Run()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 // isJSON is a function that check for valid JSON input

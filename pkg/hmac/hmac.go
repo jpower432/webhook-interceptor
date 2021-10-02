@@ -15,6 +15,7 @@ import (
 )
 
 type hmacValidator string
+
 // validateMAC reports whether messageMAC is a valid HMAC tag for message.
 func validMAC(message, messageMAC, key []byte, shaVersion string) (bool, error) {
 	var mac hash.Hash
@@ -46,8 +47,7 @@ func CreateHash(message, key []byte, shaVersion string) ([]byte, error) {
 		return nil, fmt.Errorf("unsupported SHA version: %s", shaVersion)
 	}
 	mac.Write(message)
-	hash := mac.Sum(nil)
-	return hash, nil
+	return mac.Sum(nil), nil
 }
 
 // Verify validates an encodedHash
@@ -64,7 +64,7 @@ func Verify(bytesIn []byte, encodedHash string, secretKey string, shaVersion str
 		messageMAC := shaName[1]
 		messageMACBuf, _ := hex.DecodeString(messageMAC)
 
-		check, err := validMAC(bytesIn, []byte(messageMACBuf), []byte(secretKey), shaVersion)
+		check, err := validMAC(bytesIn, messageMACBuf, []byte(secretKey), shaVersion)
 		if err != nil {
 			return err
 		} else if check == false {
@@ -100,5 +100,3 @@ func (h hmacValidator) Intercept(ctx *gin.Context, results chan<- string) {
 
 // Interceptor exported got plugin use
 var Interceptor hmacValidator
-
-
